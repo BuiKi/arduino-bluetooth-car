@@ -11,7 +11,7 @@ Developed using the **PlatformIO** ecosystem on Visual Studio Code, the codebase
 The firmware is configured to drive an Arduino Uno board interacting with high-current motor drivers, specialized sensors, and communication modules:
 
 - **Microcontroller:** Arduino Uno (ATmega328P @ 16MHz)
-- **Motor Driver:** L298N / L293D H-Bridge Dual-Channel Controller
+- **Motor Driver:** L298N
 - **Actuator (Radar Servo):** SG90 Micro Servo (PWM-controlled positioning)
 - **Range Sensor:** HC-SR04 Ultrasonic Transceiver Module
 - **Wireless Comm:** HC-05 / HC-06 Bluetooth Serial Pass-through Module (Default Baud: 9600 bps)
@@ -49,7 +49,7 @@ To mitigate acoustic noise, false reflections, and environmental signal degradat
 
 The vehicle operates under a strict, layered safety matrix based on the distance calculated by the radar:
 
-- **Safe Zone ($>30\text{ cm}$):** Vehicle runs at full nominal cruising speed (`motorSpeed = 150`).
+- **Safe Zone ($>30\text{ cm}$):** Vehicle runs at full nominal cruising speed (`motorSpeed`).
 - **Warning Zone ($15\text{ cm} \le \text{Distance} \le 30\text{ cm}$):** The system triggers proactive deceleration, restricting the maximum driving velocity to $60\%$ of nominal speed to minimize kinetic impact risks.
 - **Danger / Emergency Zone ($<15\text{ cm}$):** An absolute safety override flag (`safetyOverrideActive`) is flipped. The system forcefully overrides active manual inputs from Bluetooth and applies an immediate hard-braking action to preserve vehicle hardware.
 
@@ -69,34 +69,43 @@ car_controller/
 └── platformio.ini      # Project configuration and dependency manifest
 ```
 
-🚀 Compilation & Deployment Guidelines
-Prerequisites
-Install Visual Studio Code.
+````
 
-Install the PlatformIO IDE extension from the VS Code Marketplace.
+---
 
-Deployment Steps
-Clone or open the car_controller workspace directory in VS Code.
+## 📡 Remote Control Protocol (API Specifications)
 
-PlatformIO will read platformio.ini and automatically resolve the native Atmel AVR toolchain along with the built-in Servo dependency.
-
-Connect your Arduino Uno development board via USB.
-
-Click the PlatformIO: Build icon (Checkmark) on the bottom status bar to compile the binaries.
-
-Click the PlatformIO: Upload icon (Right arrow) to flash the compiled binary image onto the microcontroller.
-
-Connect your controller app or Python script via the Bluetooth module to begin operation!
-
-📡 Remote Control Protocol (API Specifications)
 The serial controller expects single-byte ASCII characters sent over Bluetooth at a baud rate of 9600 bps. The active command interpreter maps incoming signals according to the following control scheme:
 
-F : Move Forward (Subject to dynamic speed scaling and proximity braking)
+| ASCII Command | Action / Movement | Description                                                                      |
+| ------------- | ----------------- | -------------------------------------------------------------------------------- |
+| **`F`**       | Move Forward      | Drives vehicle straight (Subject to dynamic speed scaling and proximity braking) |
+| **`B`**       | Move Backward     | Reverses vehicle movement at nominal background speed                            |
+| **`L`**       | Sharp Turn Left   | Counter-rotates left/right wheel vectors for high-mobility turning               |
+| **`R`**       | Sharp Turn Right  | Clockwise wheel vector rotation for high-mobility turning                        |
+| **`S`**       | Idle / Stop       | Disengages all H-Bridge driver channels instantly                                |
+| **`U`**       | Speed Up          | Increases base cruising speed step-wise ($+25$ PWM points, max 255)              |
+| **`D`**       | Speed Down        | Decreases base cruising speed step-wise ($-25$ PWM points, min 100)              |
 
-B : Move Backward (Standard maneuvering reverse)
+---
 
-L : Sharp Turn Left (Counter-rotation; turns the wheels in opposite directions)
+## 🚀 Compilation & Deployment Guidelines
 
-R : Sharp Turn Right (Clockwise rotation; turns the wheels in opposite directions)
+### Prerequisites
 
-S : Idle / Stop (Disengages H-Bridge drive signals)
+- Install Visual Studio Code.
+- Install the PlatformIO IDE extension from the VS Code Marketplace.
+
+### Deployment Steps
+
+1. Open the `car_controller/` workspace directory in VS Code.
+2. PlatformIO will read `platformio.ini` and automatically resolve the native Atmel AVR toolchain along with the built-in Servo dependency.
+3. Connect your Arduino Uno development board via USB.
+4. Click the **PlatformIO: Build** icon (Checkmark) on the bottom status bar to compile the binaries.
+5. Click the **PlatformIO: Upload** icon (Right arrow) to flash the compiled binary image onto the microcontroller.
+6. Connect your controller app or Python script via the Bluetooth module to begin operation!
+
+```
+
+```
+````

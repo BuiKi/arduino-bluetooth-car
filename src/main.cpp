@@ -61,7 +61,7 @@ struct SensorData {
 CarState currentState = IDLE_STATE;       
 long currentDistance = 0;                 
 bool emergencyStopActive = false;         
-char bluetoothCommand = 'S';              // Biến lưu lệnh di chuyển (F, B, L, R, S)
+char bluetoothCommand = 'S';              // Biến lưu lệnh di chuyển nhận được (F, B, L, R, S, U, D)
 bool safetyOverrideActive = false;        // Cờ ghi đè an toàn (Khi true, khóa mọi chuyển động)
 SensorData currentSensorData;             
 
@@ -69,6 +69,9 @@ int motorSpeed = 150;                     // Tốc độ gốc của xe (0 - 255
 int dynamicSpeed = motorSpeed;            // Tốc độ thay đổi linh hoạt theo khoảng cách
 float turnMultiplier = 0.7;               // Hệ số giảm tốc khi rẽ
 int turnSpeed = 0;                        
+
+// --- BIẾN BỔ SUNG: PHỤC VỤ THUẬT TOÁN TỐI ƯU TĂNG/GIẢM TỐC THEO CỬ CHỈ ---
+char lastDirectionCommand = 'S';          // Biến lưu lại hướng đi gần nhất để tránh xe bị khựng khi đổi tốc độ
 
 // --- BIẾN BỔ SUNG: PHỤC VỤ THUẬT TOÁN QUÉT RADAR LIÊN TỤC KHÔNG CHẶN (NON-BLOCKING) ---
 int currentAngle = 60;          // Góc quét bắt đầu (Quét từ 60 độ sang 120 độ trước mặt)
@@ -281,7 +284,8 @@ void runContinuousRadar()
 void readBluetooth(){
   if (Serial.available() > 0){
     char cmd = Serial.read(); 
-    if (cmd == 'F' || cmd == 'B' || cmd == 'L' || cmd == 'R' || cmd == 'S'){
+    // ĐÃ CẬP NHẬT: Thêm 'U' (Tăng tốc) và 'D' (Giảm tốc) vào danh sách ký tự hợp lệ
+    if (cmd == 'F' || cmd == 'B' || cmd == 'L' || cmd == 'R' || cmd == 'S' || cmd == 'U' || cmd == 'D'){
       bluetoothCommand = cmd; 
     }
   }
@@ -290,21 +294,57 @@ void readBluetooth(){
 void executeBluetoothCommand()
 {
   // ⚡ KIỂM TRA ĐIỀU KIỆN AN TOÀN TRƯỚC (SAFETY OVERRIDE FIRST)
-  // Nếu mắt quét radar phát hiện nguy hiểm, ép dừng động cơ và phớt lờ lệnh điều khiển tay từ điện thoại/Python
+  // Nếu mắt quét radar phát hiện nguy hiểm, ép dừng động cơ và phớt lờ lệnh tay
   if (safetyOverrideActive)
   {
     stopMotor();
     return;
   }
 
-  // Thực thi các chuyển động dựa theo ký tự nhận được
+  // ======================================================
+  // KHU VỰC XỬ LÝ LỆNH TỐC ĐỘ (MỚI BỔ SUNG & TỐI ƯU CHỐNG KHỰNG XE)
+  // ======================================================
+  if (bluetoothCommand == 'U') {
+    motorSpeed += 25; // Mỗi lần nhận lệnh từ Python sẽ tăng tốc lên 1 nấc
+    if (motorSpeed > 255) motorSpeed = 255; // Khống chế tối đa 255
+    dynamicSpeed = motorSpeed; 
+    
+    // Đảo biến lệnh về hướng đi trước đó để xe giữ nguyên trạng thái chạy, không bị phanh giật cục
+    bluetoothCommand = lastDirectionCommand; 
+  } 
+  else if (bluetoothCommand == 'D') {
+    motorSpeed -= 25; // Mỗi lần nhận lệnh từ Python sẽ giảm tốc đi 1 nấc
+    if (motorSpeed < 100) motorSpeed = 100; // Giữ nấc tối thiểu 100 để xe không bị nghẹt cơ
+    dynamicSpeed = motorSpeed; 
+    
+    bluetoothCommand = lastDirectionCommand; 
+  }
+
+  // Thực thi các chuyển động dựa theo ký tự hướng đi
   switch (bluetoothCommand)
   {
-    case 'F': moveForward();  break;
-    case 'B': moveBackward(); break;
-    case 'L': turnLeft();     break;
-    case 'R': turnRight();    break;
-    default:  stopMotor();    break;
+    case 'F': 
+      moveForward();  
+      lastDirectionCommand = 'F'; // Ghi nhớ trạng thái xe đang đi thẳng
+      break;
+    case 'B': 
+      moveBackward(); 
+      lastDirectionCommand = 'B'; // Ghi nhớ trạng thái xe đang lùi
+      break;
+    case 'L': 
+      turnLeft();     
+      // Không lưu hướng rẽ vào lastDirectionCommand để tránh xe tự xoay vòng tròn vô hạn
+      break;
+    case 'R': 
+      turnRight();    
+      break;
+    case 'S':
+      stopMotor();
+      lastDirectionCommand = 'S'; // Ghi nhớ trạng thái xe đang đứng im
+      break;
+    default:  
+      stopMotor();    
+      break;
   }
 }
 
@@ -335,10 +375,10 @@ void setup()
 // ======================================================
 void loop()
 {
-  // Bước 1: Liên tục đọc lệnh điều khiển thủ công (từ nút bấm app hoặc cử chỉ ngón tay gửi xuống)
+  // Bước 1: Liên tục đọc lệnh điều khiển thủ công (từ cử chỉ ngón tay Python truyền xuống)
   readBluetooth();
 
-  // Bước 2: Kích hoạt radar quét liên tục không chặn (Servo tự gạt 60-120 độ để dò chướng ngại vật bảo vệ xe)
+  // Bước 2: Kích hoạt radar quét liên tục không chặn (Servo tự gạt để dò chướng ngại vật bảo vệ xe)
   runContinuousRadar();
 
   // Bước 3: Đưa lệnh điều khiển vào bộ xử lý thực thi động cơ dựa trên trạng thái an toàn
