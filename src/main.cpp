@@ -293,54 +293,56 @@ void readBluetooth(){
 
 void executeBluetoothCommand()
 {
-  // ⚡ KIỂM TRA ĐIỀU KIỆN AN TOÀN TRƯỚC (SAFETY OVERRIDE FIRST)
-  // Nếu mắt quét radar phát hiện nguy hiểm, ép dừng động cơ và phớt lờ lệnh tay
-  if (safetyOverrideActive)
+  // ======================================================
+  // ⚡ BỘ LỌC AN TOÀN THÔNG MINH (SMART SAFETY OVERRIDE)
+  // ======================================================
+  // Nếu radar phát hiện vật cản quá gần (<15cm) và người dùng/AI cố tình ra lệnh Tiến (F)
+  if (safetyOverrideActive && bluetoothCommand == 'F')
   {
-    stopMotor();
-    return;
+    stopMotor(); // Ép phanh dừng xe ngay để chống đâm đụng
+    return;      // Thoát hàm, không cho phép đi thẳng tiếp
   }
+  
+  // NẾU LÀ LỆNH LÙI (B) HOẶC RẼ (L/R) THÌ BỎ QUA BỘ LỌC TRÊN ĐỂ XE TIẾP TỤC XỬ LÝ BÊN DƯỚI!
 
   // ======================================================
-  // KHU VỰC XỬ LÝ LỆNH TỐC ĐỘ (MỚI BỔ SUNG & TỐI ƯU CHỐNG KHỰNG XE)
+  // KHU VỰC XỬ LÝ LỆNH TỐC ĐỘ (GIỮ NGUYÊN)
   // ======================================================
   if (bluetoothCommand == 'U') {
-    motorSpeed += 25; // Mỗi lần nhận lệnh từ Python sẽ tăng tốc lên 1 nấc
-    if (motorSpeed > 255) motorSpeed = 255; // Khống chế tối đa 255
+    motorSpeed += 25; 
+    if (motorSpeed > 255) motorSpeed = 255;
     dynamicSpeed = motorSpeed; 
-    
-    // Đảo biến lệnh về hướng đi trước đó để xe giữ nguyên trạng thái chạy, không bị phanh giật cục
     bluetoothCommand = lastDirectionCommand; 
   } 
   else if (bluetoothCommand == 'D') {
-    motorSpeed -= 25; // Mỗi lần nhận lệnh từ Python sẽ giảm tốc đi 1 nấc
-    if (motorSpeed < 100) motorSpeed = 100; // Giữ nấc tối thiểu 100 để xe không bị nghẹt cơ
+    motorSpeed -= 25; 
+    if (motorSpeed < 100) motorSpeed = 100; 
     dynamicSpeed = motorSpeed; 
-    
     bluetoothCommand = lastDirectionCommand; 
   }
 
-  // Thực thi các chuyển động dựa theo ký tự hướng đi
+  // ======================================================
+  // THỰC THI CÁC CHUYỂN ĐỘNG (GIỮ NGUYÊN LOGIC GỐC)
+  // ======================================================
   switch (bluetoothCommand)
   {
     case 'F': 
       moveForward();  
-      lastDirectionCommand = 'F'; // Ghi nhớ trạng thái xe đang đi thẳng
+      lastDirectionCommand = 'F'; 
       break;
     case 'B': 
       moveBackward(); 
-      lastDirectionCommand = 'B'; // Ghi nhớ trạng thái xe đang lùi
+      lastDirectionCommand = 'B'; // Python bắn chữ B xuống xe vẫn lùi được bình thường để thoát hiểm
       break;
     case 'L': 
-      turnLeft();     
-      // Không lưu hướng rẽ vào lastDirectionCommand để tránh xe tự xoay vòng tròn vô hạn
+      turnLeft();     // Python bắn chữ L xuống xe vẫn rẽ được để tìm góc thoáng
       break;
     case 'R': 
-      turnRight();    
+      turnRight();    // Python bắn chữ R xuống xe vẫn rẽ được để né vật cản
       break;
     case 'S':
       stopMotor();
-      lastDirectionCommand = 'S'; // Ghi nhớ trạng thái xe đang đứng im
+      lastDirectionCommand = 'S'; 
       break;
     default:  
       stopMotor();    
