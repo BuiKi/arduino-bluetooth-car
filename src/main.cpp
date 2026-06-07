@@ -14,13 +14,13 @@ const int DANGER_DISTANCE = 15;  // Dưới 15cm: Nguy hiểm, kích hoạt phan
 // ======================================================
 // MOTOR DRIVER PINS - CẤU HÌNH CHÂN ĐIỀU KHIỂN ĐỘNG CƠ
 // ======================================================
-const int ENA_PIN = 5;    // Chân điều khiển tốc độ PWM cho Motor A
-const int IN1_A_PIN = 6;  // Chân điều hướng 1 cho Motor A
-const int IN2_A_PIN = 7;  // Chân điều hướng 2 cho Motor A
+const int ENA_PIN = 11;    // Chân điều khiển tốc độ PWM cho Motor A
+const int IN1_A_PIN = 10;  // Chân điều hướng 1 cho Motor A
+const int IN2_A_PIN = 9;  // Chân điều hướng 2 cho Motor A
 
-const int ENB_PIN = 11;   // Chân điều khiển tốc độ PWM cho Motor B (Né chân 9, 10 để tránh xung đột)
-const int IN1_B_PIN = 10; // Chân điều hướng 1 cho Motor B
-const int IN2_B_PIN = 9;  // Chân điều hướng 2 cho Motor B
+const int ENB_PIN = 5 ;   // Chân điều khiển tốc độ PWM cho Motor B 
+const int IN1_B_PIN = 6 ; // Chân điều hướng 1 cho Motor B
+const int IN2_B_PIN = 7 ;  // Chân điều hướng 2 cho Motor B
 
 // ======================================================
 // ULTRASONIC SENSOR PINS - CHÂN CẢM BIẾN SIÊU ÂM HC-SR04

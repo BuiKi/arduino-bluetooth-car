@@ -20,12 +20,12 @@ The firmware is configured to drive an Arduino Uno board interacting with high-c
 
 | Hardware Component                | Arduino Pin | Mode / Description                                              |
 | :-------------------------------- | :---------: | :-------------------------------------------------------------- |
-| **Motor A (Left) Speed Control**  |   `Pin 5`   | **PWM Output** (Speed modulation via `ENA`)                     |
-| **Motor A Direction Control 1**   |   `Pin 6`   | **Digital Output** (`IN1_A`)                                    |
-| **Motor A Direction Control 2**   |   `Pin 7`   | **Digital Output** (`IN2_A`)                                    |
-| **Motor B (Right) Speed Control** |  `Pin 11`   | **PWM Output** (Speed modulation via `ENB`)                     |
-| **Motor B Direction Control 1**   |  `Pin 10`   | **Digital Output** (`IN1_B`)                                    |
-| **Motor B Direction Control 2**   |   `Pin 9`   | **Digital Output** (`IN2_B`)                                    |
+| **Motor A (Left) Speed Control**  |  `Pin 11`   | **PWM Output** (Speed modulation via `ENA`)                     |
+| **Motor A Direction Control 1**   |  `Pin 10`   | **Digital Output** (`IN1_A`)                                    |
+| **Motor A Direction Control 2**   |   `Pin 9`   | **Digital Output** (`IN2_A`)                                    |
+| **Motor B (Right) Speed Control** |   `Pin 5`   | **PWM Output** (Speed modulation via `ENB`)                     |
+| **Motor B Direction Control 1**   |   `Pin 6`   | **Digital Output** (`IN1_B`)                                    |
+| **Motor B Direction Control 2**   |   `Pin 7`   | **Digital Output** (`IN2_B`)                                    |
 | **HC-SR04 Ultrasonic Trigger**    |  `Pin 12`   | **Digital Output** (10µs acoustic burst excitation)             |
 | **HC-SR04 Ultrasonic Echo**       |   `Pin 2`   | **Digital Input** (High-precision pulse-width capture)          |
 | **SG90 Servo Control**            |   `Pin 3`   | **PWM Output** (Hardware-timed Servo position train)            |
