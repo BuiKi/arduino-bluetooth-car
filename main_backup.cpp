@@ -8,7 +8,7 @@
 const unsigned long SERIAL_BAUD_RATE = 9600;
 
 unsigned long lastCommandTime = 0;
-const int COMMAND_TIMEOUT = 2000;
+const int COMMAND_TIMEOUT = 500;
 
 // Các ngưỡng khoảng cách an toàn để xử lý va chạm (đơn vị: cm)
 const int WARNING_DISTANCE = 30; // Dưới 30cm: Bắt đầu cảnh báo và giảm tốc độ
@@ -85,12 +85,6 @@ int currentAngle = 60;          // Góc quét bắt đầu (Quét từ 60 độ 
 int scanDirection = 1;          // Hướng quay của servo (1: Quay thuận, -1: Quay nghịch)
 unsigned long lastRadarTime = 0; // Lưu mốc thời gian của lần dịch góc Servo trước đó
 const int RADAR_INTERVAL = 60;  // Khoảng thời gian giãn cách giữa các góc quét (60ms giúp xe chạy mượt, không khựng)
-
-// --- BIẾN BỔ SUNG: PHỤC VỤ CHẾ ĐỘ AUTO (NE VAT CAN) ---
-bool isAutoMode = false;           // Cờ báo hiệu: true = đang né vật cản, false = nghe lệnh tay
-unsigned long autoStartTime = 0;   // Mốc thời gian bắt đầu chế độ né
-int autoStep = 0;                  // Bước thực hiện né (0: Lùi, 1: Rẽ, 2: Tiến, 3: Cân bằng)
-
 
 // ======================================================
 // MOTOR CONTROLLER - CÁC HÀM ĐIỀU KHIỂN ĐỘNG CƠ
@@ -305,19 +299,14 @@ void readBluetooth(){
     char cmd = Serial.read(); 
     
     // Chỉ nhận các ký tự hợp lệ, bỏ qua ký tự rác
-    if (cmd == 'F' || cmd == 'B' || cmd == 'L' || cmd == 'R' || cmd == 'S' || cmd == 'A' || cmd == 'M'){
+    if (cmd == 'F' || cmd == 'B' || cmd == 'L' || cmd == 'R' || cmd == 'S' || cmd == 'U' || cmd == 'D'){
       bluetoothCommand = cmd;
       lastCommandTime = millis();
-
-      if (cmd == 'A') isAutoMode = true;
-      else if (cmd == 'M')
-      {
-       isAutoMode = false;
-       stopMotor();
-      }
       
+      // DEBUG: In ra để xem Arduino có thực sự nhận lệnh không
+      // Nếu sau khi sửa mà vẫn không chạy, bạn sẽ thấy dòng này hiện lên ở Serial Monitor
+       //Serial.print("NHAN_LENH: "); Serial.println(cmd); 
     }
-    while (Serial.available() > 0) Serial.read();
   }
 }
 
@@ -381,19 +370,6 @@ void sendSensorToPython() {
 // Thêm biến này để quản lý thời gian gửi dữ liệu lên Python không bị nghẽn
 unsigned long lastSendPythonTime = 0; 
 const int SEND_PYTHON_INTERVAL = 1000; // 1000ms gửi cảm biến 1 lần (vừa đủ mượt, vừa thoáng mạch)
-
-// --- AUTO-AVOIDANCE MODULE (HÀM NÉ VẬT CẢN) ---
-// ======================================================
-bool runAutoAvoidance() {
-    switch (autoStep) {
-        case 0: moveBackward(); if (millis() - autoStartTime > 400) { autoStartTime = millis(); autoStep = 1; } break;
-        case 1: turnLeft();     if (millis() - autoStartTime > 500) { autoStartTime = millis(); autoStep = 2; } break;
-        case 2: moveForward();  if (millis() - autoStartTime > 800) { autoStartTime = millis(); autoStep = 3; } break;
-        case 3: turnRight();    if (millis() - autoStartTime > 500) { autoStartTime = millis(); autoStep = 0; return false; } break;
-    }
-    return true;
-}
-
 // ======================================================
 // SETUP - KHỞI TẠO PHẦN CỨNG
 // ======================================================
@@ -420,35 +396,25 @@ void setup()
 // ======================================================
 // LOOP - VÒNG LẶP CHƯƠNG TRÌNH CHÍNH (ĐÃ SỬA CHỐNG NGHẼN)
 // ======================================================
-void loop() {
-  readBluetooth(); 
+void loop()
+{
 
-  if (isAutoMode) {
-      runContinuousRadar();
-      
-      // Kiểm tra khoảng cách
-      if (frontDistance < 15 && frontDistance > 0) {
-          // Bắt đầu né: Nếu là lần đầu tiên phát hiện vật cản, reset thời gian
-          if (autoStep == 0 && autoStartTime == 0) autoStartTime = millis(); 
-          
-          if (!runAutoAvoidance()) {
-              autoStep = 0;      // Reset bước né
-              autoStartTime = 0; // Reset thời gian
-          }
-      } else {
-          // Đường thoáng, tiến lên
-          moveForward();
-          // Reset các biến trạng thái né để sẵn sàng cho lần gặp vật cản tới
-          autoStep = 0;
-          autoStartTime = 0;
-      }
-  } else {
-      executeBluetoothCommand();
+  // Bước 1: Liên tục đọc lệnh điều khiển từ Python truyền xuống (Ưu tiên cao nhất)
+  readBluetooth();
+
+  // Bước 2: Đưa lệnh điều khiển vào bộ xử lý thực thi động cơ
+  executeBluetoothCommand();
+
+  // Bước 3: Đưa lệnh điều khiển vào bộ xử lý thực thi động cơ
+  runContinuousRadar();
+
+  // Bước 4: S - Chỉ gửi dữ liệu lên Python theo chu kỳ thời gian, 
+  if (millis() - lastSendPythonTime >= SEND_PYTHON_INTERVAL) {
+    lastSendPythonTime = millis(); // Cập nhật lại mốc thời gian
+    sendSensorToPython();          // Xe báo lại cho AI (Python) biết môi trường
   }
-
-  // Gửi dữ liệu về Python
-  if (millis() - lastSendPythonTime >= 1000) {
-    lastSendPythonTime = millis();
-    sendSensorToPython();
+  if (millis() - lastCommandTime > COMMAND_TIMEOUT) {
+    bluetoothCommand = 'S';
+    stopMotor();
   }
 }
